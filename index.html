@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>CenoCup Engine PRO - Multiverso e DNA Calculado</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Goldman:wght@700&family=Orbitron:wght@900&family=Rajdhani:wght@700&display=swap');
+
+        /* TEMAS DE AURA (Cores de Fundo e Neon) */
+        :root { --matrix: #00ff41; --champions: #00aaff; --elite: #ffd700; --icon: #ffffff; }
+
+        /* Classes de Aura que mudam tudo */
+        .aura-matrix { --theme: var(--matrix); --card-bg: #000; }
+        .aura-champions { --theme: var(--champions); --card-bg: #000c1d; }
+        .aura-elite { --theme: var(--elite); --card-bg: #110d00; }
+        .aura-icon { --theme: var(--icon); --card-bg: #000; }
+
+        body { background: #050505; color: #fff; font-family: 'Rajdhani', sans-serif; display: flex; gap: 30px; padding: 20px; justify-content: center; align-items: flex-start; }
+
+        /* EDITOR PRO (ESQUERDA) */
+        .sidebar { width: 360px; background: #111; padding: 25px; border-radius: 20px; border: 1px solid #333; box-shadow: 0 10px 40px #000; }
+        .sidebar h2 { font-family: 'Orbitron'; font-size: 14px; color: var(--theme); margin-bottom: 15px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 10px; text-align: center; }
+        
+        .aura-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .aura-btn { border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 900; font-family: 'Goldman'; text-transform: uppercase; font-size: 10px; transition: 0.3s; }
+        .btn-matrix { background: var(--matrix); color: #000; }
+        .btn-champions { background: var(--champions); color: #000; }
+        .btn-elite { background: var(--elite); color: #000; }
+        .btn-icon { background: var(--icon); color: #000; box-shadow: 0 0 10px #fff; }
+        .aura-btn:hover { transform: scale(1.05); filter: brightness(1.2); }
+
+        .control-group { margin-bottom: 12px; }
+        label { font-size: 10px; color: #888; text-transform: uppercase; display: block; margin-bottom: 3px; font-weight: bold; }
+        input { background: #1a1a1a; border: 1px solid #444; color: #fff; padding: 9px; border-radius: 5px; width: 92%; outline: none; font-family: 'Rajdhani'; transition: 0.3s; }
+        input:focus { border-color: var(--theme); box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        input[readonly] { background: #0d0d0d; border-color: var(--theme); color: var(--theme); font-family: 'Orbitron'; font-size: 14px; cursor: not-allowed; }
+
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+        .btn-save { background: var(--theme); color: #000; border: none; width: 100%; padding: 18px; border-radius: 10px; font-weight: 900; cursor: pointer; font-family: 'Orbitron'; margin-top: 15px; text-transform: uppercase; transition: 0.3s; font-size: 12px; }
+        .btn-save:hover { letter-spacing: 2px; filter: brightness(1.2); }
+
+        /* A CARTA - RENDERIZADA (DIREITA) */
+        #card-render { 
+            position: relative; width: 390px; height: 550px; 
+            clip-path: polygon(0% 12%, 15% 0%, 85% 0%, 100% 12%, 100% 88%, 50% 100%, 0% 88%);
+            background: var(--card-bg); overflow: hidden; box-shadow: 0 0 50px rgba(0,0,0,1); border: 1px solid rgba(255,255,255,0.05); transition: 0.3s ease;
+        }
+
+        #bg-canvas { position: absolute; inset: 0; z-index: 1; filter: contrast(1.1) brightness(0.7); }
+        .vignette { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,1) 15%, transparent 50%); z-index: 2; pointer-events: none; }
+
+        /* FOTO DO TÉCNICO */
+        #player-layer { position: absolute; inset: 0; z-index: 3; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 110px; }
+        .p-img { height: 460px; object-fit: contain; filter: drop-shadow(0 20px 40px #000); transition: 0.1s ease; }
+
+        /* UI DA CARTA - OVERLAY (SEM QUADRADOS) */
+        .card-ui { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+
+        /* DNA SCORE (CALCULADO) E POSIÇÃO (TOPO) */
+        .top-info { position: absolute; top: 60px; left: 45px; text-align: left; }
+        .dna-val { font-family: 'Orbitron'; font-size: 80px; font-weight: 900; line-height: 0.8; color: #fff; text-shadow: 0 0 20px var(--theme); }
+        .pos-badge { font-family: 'Orbitron'; font-size: 20px; color: var(--theme); border-top: 4px solid var(--theme); margin-top: 8px; display: inline-block; letter-spacing: 3px; font-weight: bold; }
+
+        /* NOME DO TÉCNICO (Estilo Champions/Elite) */
+        .name-banner { position: absolute; bottom: 135px; width: 100%; text-align: center; }
+        .name-txt { 
+            font-family: 'Orbitron'; font-size: 40px; text-transform: uppercase; font-style: italic; font-weight: 900;
+            background: linear-gradient(to bottom, #fff 50%, var(--theme) 150%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 5px 15px #000);
+        }
+
+        /* DASHBOARD HORIZONTAL LADO A LADO */
+        .stats-dashboard {
+            position: absolute; bottom: 50px; width: 90%; left: 5%;
+            display: flex; justify-content: space-between; align-items: flex-end;
+            padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.15);
+        }
+        .stat-col { display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .stat-col span { font-size: 10px; color: var(--theme); font-weight: 900; letter-spacing: 1px; opacity: 0.8; }
+        .stat-col b { font-family: 'Goldman'; font-size: 24px; color: #fff; line-height: 1.1; margin-top: 2px; text-shadow: 0 2px 5px #000; }
+        
+        /* DESTAQUE TITULOS */
+        .t-gold { filter: drop-shadow(0 0 10px var(--elite)); }
+        .t-gold b, .t-gold span { color: var(--elite); }
+
+    </style>
+</head>
+<body class="aura-matrix">
+
+    <div class="sidebar">
+        <h2>CenoCup PRO Workstation</h2>
+        
+        <label>Escolha a Aura Visual do Técnico</label>
+        <div class="aura-selector">
+            <button class="aura-btn btn-matrix" onclick="setTheme('matrix')">MATRIX (Verde)</button>
+            <button class="aura-btn btn-champions" onclick="setTheme('champions')">CHAMPIONS (Azul)</button>
+            <button class="aura-btn btn-elite" onclick="setTheme('elite')">ELITE (Ouro)</button>
+            <button class="aura-btn btn-icon" onclick="setTheme('icon')">ICON (Branca)</button>
+        </div>
+
+        <div class="control-group"><label>Foto (Upload Local)</label><input type="file" id="f-in"></div>
+        <div class="control-group"><label>Nome Completo</label><input type="text" id="n-in" value="NEYMAR JR"></div>
+        
+        <div class="control-group"><label>DNA (Overall Calculado)</label><input type="text" id="dna-out" value="95" readonly></div>
+        
+        <div class="grid-3">
+            <div class="control-group"><label>POS</label><input type="text" id="pos-in" value="ATA"></div>
+            <div class="control-group"><label>T (Títulos)</label><input type="number" id="t-in" value="5" oninput="calcDNA()"></div>
+            <div class="control-group"><label>R (Rank)</label><input type="number" id="r-in" value="1" oninput="calcDNA()"></div>
+        </div>
+
+        <div class="grid-3">
+            <div class="control-group"><label>V (Vitórias)</label><input type="number" id="v-in" value="45" oninput="calcDNA()"></div>
+            <div class="control-group"><label>E (Empates)</label><input type="number" id="e-in" value="12"></div>
+            <div class="control-group"><label>D (Derrotas)</label><input type="number" id="d-in" value="2" oninput="calcDNA()"></div>
+            <div class="control-group"><label>GF (Gols Feitos)</label><input type="number" id="gf-in" value="120" oninput="calcDNA()"></div>
+            <div class="control-group"><label>GS (Gols Sofridos)</label><input type="number" id="gs-in" value="15" oninput="calcDNA()"></div>
+        </div>
+
+        <div class="control-group">
+            <label>Zoom / Posição Altura Foto</label>
+            <input type="range" id="z-in" min="0.5" max="2" step="0.1" value="1">
+            <input type="range" id="y-in" min="-150" max="150" step="1" value="0">
+        </div>
+
+        <button class="btn-save" onclick="save()">BAIXAR CARTA 4K</button>
+    </div>
+
+    <div id="card-render">
+        <div id="bg-canvas"></div>
+        <div class="vignette"></div>
+        
+        <div id="player-layer">
+            <img src="https://images.footyheadlines.com/2023/07/ea-sports-fc-24-render-player-images.png" class="p-img" id="out-img">
+        </div>
+
+        <div class="card-ui">
+            <div class="top-info">
+                <div class="dna-val" id="dna-val-out">95</div>
+                <div class="pos-badge" id="out-pos">ATA</div>
+            </div>
+
+            <div class="name-banner">
+                <div class="name-txt" id="out-name">NEYMAR JR</div>
+            </div>
+
+            <div class="stats-dashboard">
+                <div class="stat-col"><span>V</span><b id="out-v">45</b></div>
+                <div class="stat-col"><span>E</span><b id="out-e">12</b></div>
+                <div class="stat-col"><span>D</span><b id="out-d">2</b></div>
+                <div class="stat-col"><span>GF</span><b id="out-gf">120</b></div>
+                <div class="stat-col"><span>GS</span><b id="out-gs">15</b></div>
+                <div class="stat-col t-gold"><span>T</span><b id="out-t">5</b></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // MOTOR GRÁFICO DO CALCULO DO DNA (O CORAÇÃO DO SISTEMA)
+        function calcDNA() {
+            // Pegar os valores numéricos dos inputs
+            const v = parseInt(document.getElementById('v-in').value) || 0;
+            const d = parseInt(document.getElementById('d-in').value) || 0;
+            const gf = parseInt(document.getElementById('gf-in').value) || 0;
+            const gs = parseInt(document.getElementById('gs-in').value) || 0;
+            const t = parseInt(document.getElementById('t-in').value) || 0;
+            const r = parseInt(document.getElementById('r-in').value) || 10; // Rank padrão baixo se não preenchido
+
+            // Algoritmo CenoCup de Performance:
+            // 1. Base: 60 (Técnico Comum)
+            let base = 60;
+
+            // 2. Pontos de Ataque (GF) e Defesa (GS/D)
+            base += (gf * 0.1);    // Gols Feitos somam
+            base -= (gs * 0.2);    // Gols Sofridos tiram mais
+            base -= (d * 1.0);     // Derrotas tiram muito
+
+            // 3. Pontos de Glória (V e Títulos)
+            base += (v * 0.5);     // Vitórias somam
+            base += (t * 5.0);     // Títulos somam MUITO (são a glória)
+
+            // 4. Punição por Rank
+            if (r === 1) base += 5; // Destaque Top 1
+            if (r > 5) base -= 5;   // Punição se estiver fora do Top 5
+
+            // Limitar o DNA entre 50 (Pior Técnico) e 99 (Lenda)
+            const finalDNA = Math.max(50, Math.min(99, Math.round(base)));
+
+            // Atualizar o DNA na carta e no input readonly
+            document.getElementById('dna-out').value = finalDNA;
+            document.getElementById('dna-val-out').innerText = finalDNA;
+        }
+
+        // Função para Mudar o Tema (Aura Visual)
+        function setTheme(themeKey) {
+            // Remove as classes antigas do body
+            document.body.className = '';
+            // Adiciona a nova classe de aura
+            document.body.classList.add(`aura-${themeKey}`);
+            // Redesenha o fundo (p5) com as novas cores
+            p5.redraw();
+        }
+
+        // Sincronização em Tempo Real (Mapemento de Inputs)
+        ['n', 'pos', 'v', 'e', 'd', 'gf', 'gs', 't'].forEach(id => {
+            const input = document.getElementById(`${id}-in`);
+            input.oninput = function() {
+                // Atualiza o texto na carta na hora
+                document.getElementById(`out-${id}`).innerText = this.value;
+                // Recalcula o DNA sempre que um valor mudar
+                calcDNA();
+            };
+        });
+
+        // Controles de Foto
+        const updateP = () => {
+            let z = document.getElementById('z-in').value;
+            let y = document.getElementById('y-in').value;
+            document.getElementById('out-img').style.transform = `scale(${z}) translateY(${y}px)`;
+        };
+        document.getElementById('z-in').oninput = updateP;
+        document.getElementById('y-in').oninput = updateP;
+
+        // Upload
+        document.getElementById('f-in').onchange = function(e) {
+            let reader = new FileReader();
+            reader.onload = (ev) => document.getElementById('out-img').src = ev.target.result;
+            reader.readAsDataURL(e.target.files[0]);
+        };
+
+        // Motor Gráfico do Mosaico (P5) - Ele usa a cor do tema dinamicamente
+        let sketch = (p) => {
+            p.setup = () => { p.createCanvas(390, 550).parent('bg-canvas'); p.noLoop(); };
+            p.draw = () => {
+                // Pega as cores CSS atuais da aura
+                let themeColor = getComputedStyle(document.body).getPropertyValue('--theme').trim();
+                let cardBg = getComputedStyle(document.body).getPropertyValue('--card-bg').trim();
+                
+                // Limpa o fundo com a cor base da carta
+                p.background(cardBg);
+                
+                // Camada de Cristais Geométricos
+                for(let i=0; i<70; i++) {
+                    p.noStroke();
+                    let c = p.color(themeColor);
+                    // Aplica transparência aleatória para os cristais
+                    c.setAlpha(p.random(20, 100));
+                    p.fill(c);
+                    p.beginShape();
+                    let x = p.random(p.width); let y = p.random(p.height);
+                    // Cria triângulos aleatórios
+                    for(let j=0; j<3; j++) p.vertex(x + p.random(-100, 100), y + p.random(-100, 100));
+                    p.endShape(p.CLOSE);
+                }
+                
+                // Linhas de Scanline (usam a cor do neon do tema)
+                p.stroke(p.color(themeColor));
+                p.strokeWeight(1);
+                // Linha fina transparente para brilho digital
+                p.stroke(255, 20);
+                for(let i=0; i<p.height; i+=8) {
+                    p.line(0, i, p.width, i);
+                }
+            };
+        };
+        new p5(sketch);
+
+        // Inicializa o cálculo
+        calcDNA();
+
+        // Exportar Carta
+        function save() {
+            html2canvas(document.getElementById('card-render'), { scale: 3, useCORS: true }).then(canvas => {
+                let a = document.createElement('a');
+                a.download = `CenoCup_PRO_${document.getElementById('n-in').value}.png`;
+                a.href = canvas.toDataURL();
+                a.click();
+            });
+        }
+    </script>
+</body>
+</html>
